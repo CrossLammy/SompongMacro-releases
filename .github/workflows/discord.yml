@@ -3,6 +3,11 @@ name: แจ้ง Release เข้า Discord
 on:
   release:
     types: [released]   # Publish ตัวจริงเท่านั้น (ข้าม pre-release / draft)
+  workflow_dispatch:     # ปุ่มกดส่งเองในแท็บ Actions
+    inputs:
+      tag:
+        description: "เวอร์ชันที่จะประกาศ เช่น v1.2"
+        required: true
 
 permissions:
   contents: read
@@ -14,9 +19,20 @@ jobs:
       - name: ส่งข้อความเข้า Discord
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          GH_TOKEN: ${{ github.token }}
+          TAG_IN: ${{ inputs.tag }}
         run: |
-          TAG=$(jq -r '.release.tag_name' "$GITHUB_EVENT_PATH")
-          BODY=$(jq -r '.release.body // ""' "$GITHUB_EVENT_PATH" | tr -d '\r')
+          # กดส่งเอง = ดึงข้อมูล Release จาก tag ที่พิมพ์ · ปกติ = ใช้ข้อมูลจากตอน Publish
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG_IN" \
+              | jq '{release: .}' > ev.json
+          else
+            cp "$GITHUB_EVENT_PATH" ev.json
+          fi
+
+          TAG=$(jq -r '.release.tag_name' ev.json)
+          BODY=$(jq -r '.release.body // ""' ev.json | tr -d '\r')
 
           # เอาเฉพาะหัวข้อ "มีอะไรใหม่" (ถึงหัวข้อถัดไป) · ตัดบรรทัดว่าง / ** / ```
           NEW=$(printf '%s\n' "$BODY" | awk '/^#+ /{f=($0 ~ /มีอะไรใหม่/); next} f' \
