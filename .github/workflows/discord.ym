@@ -1,0 +1,33 @@
+name: แจ้ง Release เข้า Discord
+
+on:
+  release:
+    types: [released]   # Publish ตัวจริงเท่านั้น (ข้าม pre-release / draft)
+
+permissions:
+  contents: read
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ส่งข้อความเข้า Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          TAG=$(jq -r '.release.tag_name' "$GITHUB_EVENT_PATH")
+          BODY=$(jq -r '.release.body // ""' "$GITHUB_EVENT_PATH" | tr -d '\r')
+
+          # เอาเฉพาะหัวข้อ "มีอะไรใหม่" (ถึงหัวข้อถัดไป) · ตัดบรรทัดว่าง / ** / ```
+          NEW=$(printf '%s\n' "$BODY" | awk '/^#+ /{f=($0 ~ /มีอะไรใหม่/); next} f' \
+                | sed -e '/^[[:space:]]*$/d' -e 's/\*\*//g' -e 's/```//g')
+          [ -z "$NEW" ] && NEW="$BODY"
+          NEW=${NEW:0:1700}   # Discord ให้ข้อความไม่เกิน 2000 ตัวอักษร
+
+          jq -n --arg tag "$TAG" --arg new "$NEW" '{
+            username: "SompongMacro",
+            content: ("@everyone\n## 📢 อัปเดต SompongMacro " + $tag + "\n```\n" + $new + "\n```"),
+            allowed_mentions: { parse: ["everyone"] }
+          }' > payload.json
+
+          curl -sf -H "Content-Type: application/json" -d @payload.json "$WEBHOOK"
