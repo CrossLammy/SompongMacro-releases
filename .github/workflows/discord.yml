@@ -42,8 +42,8 @@ jobs:
 
           jq -n --arg tag "$TAG" --arg new "$NEW" '{
             username: "SompongMacro",
-            content: ("@everyone\n## 📢 อัปเดต SompongMacro " + $tag + "\n```\n" + $new + "\n```"),
-            allowed_mentions: { parse: ["everyone"] }
+            content: ("@แจ้งเตือนอัปเดท\n## 📢 อัปเดต SompongMacro " + $tag + "\n```\n" + $new + "\n```"),
+            allowed_mentions: { parse: ["แจ้งเตือนอัปเดท"] }
           }' > payload.json
 
           curl -sf -H "Content-Type: application/json" -d @payload.json "$WEBHOOK"
