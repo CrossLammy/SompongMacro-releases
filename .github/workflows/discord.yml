@@ -21,6 +21,7 @@ jobs:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GH_TOKEN: ${{ github.token }}
           TAG_IN: ${{ inputs.tag }}
+          ROLE_ID: "1573434231227551824"   # ← ID ยศ "แจ้งเตือนอัปเดท" (ตัวเลขล้วน)
         run: |
           # กดส่งเอง = ดึงข้อมูล Release จาก tag ที่พิมพ์ · ปกติ = ใช้ข้อมูลจากตอน Publish
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
@@ -40,10 +41,10 @@ jobs:
           [ -z "$NEW" ] && NEW="$BODY"
           NEW=${NEW:0:1700}   # Discord ให้ข้อความไม่เกิน 2000 ตัวอักษร
 
-          jq -n --arg tag "$TAG" --arg new "$NEW" '{
+          jq -n --arg tag "$TAG" --arg new "$NEW" --arg role "$ROLE_ID" '{
             username: "SompongMacro",
-            content: ("@แจ้งเตือนอัปเดท\n## 📢 อัปเดต SompongMacro " + $tag + "\n```\n" + $new + "\n```"),
-            allowed_mentions: { parse: ["แจ้งเตือนอัปเดท"] }
+            content: ("<@&" + $role + ">\n## 📢 อัปเดต SompongMacro " + $tag + "\n```\n" + $new + "\n```"),
+            allowed_mentions: { roles: [$role] }
           }' > payload.json
 
           curl -sf -H "Content-Type: application/json" -d @payload.json "$WEBHOOK"
